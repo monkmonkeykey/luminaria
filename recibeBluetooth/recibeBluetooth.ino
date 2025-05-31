@@ -1,59 +1,65 @@
-#include <bluefruit.h>
+#include <NimBLEDevice.h>
 
-BLEClientUart clientUart;
-bool conectado = false;
+class ClienteCB : public NimBLEClientCallbacks {
+  void onConnect(NimBLEClient* pClient) {
+    Serial.println("Conectado al periférico.");
+  }
 
-void setup() {
-  Serial.begin(115200);
-  while (!Serial);
+  void onDisconnect(NimBLEClient* pClient) {
+    Serial.println("Desconectado.");
+  }
+};
 
-  Bluefruit.begin(0, 1); // 0 periféricos, 1 central
-  Bluefruit.setName("XIAO-RECEPTOR");
-
-  clientUart.begin();
-
-  // Asignar funciones de conexión
-  Bluefruit.Central.setConnectCallback(connect_callback);
-  Bluefruit.Central.setDisconnectCallback(disconnect_callback);
-
-  // Escaneo BLE
-  Bluefruit.Scanner.setRxCallback(scan_callback);
-  Bluefruit.Scanner.start(0); // 0 = escaneo infinito
-
-  Serial.println("Escaneando dispositivos UART...");
-}
-
-void loop() {
-  if (conectado && clientUart.available()) {
-    String msg = clientUart.readStringUntil('\n');
+class NotificacionCB : public NimBLERemoteCharacteristicCallbacks {
+  void onNotify(NimBLERemoteCharacteristic* pCharacteristic, uint8_t* data, size_t length, bool isNotify) {
+    String msg = "";
+    for (size_t i = 0; i < length; i++) {
+      msg += (char)data[i];
+    }
     Serial.print("Recibido: ");
     Serial.println(msg);
   }
-}
+};
 
-void scan_callback(ble_gap_evt_adv_report_t* report) {
-  if (Bluefruit.Scanner.checkReportForUuid(report, clientUart.uuid)) {
-    Serial.println("Dispositivo UART encontrado. Conectando...");
-    Bluefruit.Central.connect(report);
-    Bluefruit.Scanner.stop(); // detener escaneo una vez encontrado
+void setup() {
+  Serial.begin(115200);
+  NimBLEDevice::init("");
+
+  NimBLEScan* pScan = NimBLEDevice::getScan();
+  pScan->setActiveScan(true);
+  pScan->setInterval(45);
+  pScan->setWindow(15);
+
+  Serial.println("Escaneando...");
+
+  NimBLEScanResults results = pScan->start(5, false);
+  for (int i = 0; i < results.getCount(); i++) {
+    NimBLEAdvertisedDevice device = results.getDevice(i);
+    if (device.haveServiceUUID() && device.getServiceUUID().equals(NimBLEUUID("12345678-1234-1234-1234-1234567890ab"))) {
+      Serial.println("Dispositivo encontrado. Conectando...");
+
+      NimBLEClient* pClient = NimBLEDevice::createClient();
+      pClient->setClientCallbacks(new ClienteCB());
+
+      if (pClient->connect(&device)) {
+        NimBLERemoteService* pService = pClient->getService("12345678-1234-1234-1234-1234567890ab");
+        if (pService) {
+          NimBLERemoteCharacteristic* pChar = pService->getCharacteristic("abcdefab-1234-1234-1234-abcdefabcdef");
+          if (pChar && pChar->canNotify()) {
+            pChar->subscribe(true, new NotificacionCB());
+            Serial.println("Suscrito a notificaciones.");
+            return;
+          }
+        }
+      }
+
+      Serial.println("Error al conectar o descubrir característica.");
+    }
   }
+
+  Serial.println("Dispositivo no encontrado.");
 }
 
-void connect_callback(uint16_t conn_handle) {
-  Serial.println("¡Conectado al periférico!");
-  if (clientUart.discover(conn_handle)) {
-    conectado = true;
-    Serial.println("Servicio UART detectado.");
-  } else {
-    Serial.println("Error: Servicio UART no detectado.");
-    Bluefruit.disconnect(conn_handle);  // <- CORRECTO
-  }
-}
-
-
-void disconnect_callback(uint16_t conn_handle, uint8_t reason) {
-  Serial.print("Desconectado. Razón: ");
-  Serial.println(reason);
-  conectado = false;
-  Bluefruit.Scanner.start(0); // reiniciar escaneo
+void loop() {
+  delay(1000); // mantener vivo el loop
 }
