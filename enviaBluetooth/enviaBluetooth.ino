@@ -4,19 +4,23 @@ BLEUart bleuart;
 
 void setup() {
   Serial.begin(115200);
+  while (!Serial);
+
   Bluefruit.begin();
-  Bluefruit.setName("XIAO-Test");
+  Bluefruit.setName("XIAO-EMISOR");
   bleuart.begin();
 
+  // Anunciar el servicio
   Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
   Bluefruit.Advertising.addService(bleuart);
-  Bluefruit.Advertising.start(0);
+  Bluefruit.Advertising.start(0); // 0 = indefinidamente
 
-  Serial.println("Anunciando BLE UART...");
+  Serial.println("Emisor BLE UART iniciado.");
 }
 
+
 void loop() {
-  bleuart.println("Prueba 123");
-  Serial.println("Enviado: Prueba 123");
+  bleuart.print("Hola desde el emisor\n");
+  Serial.println("Mensaje enviado");
   delay(1000);
 }
