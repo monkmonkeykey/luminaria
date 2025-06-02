@@ -2,38 +2,42 @@
 #include <WiFiUdp.h>
 #include <OSCMessage.h>
 
-const char* ssid = "Taller";
+const char* ssid = "Taller";        // SSID del AP creado por el servidor
 const char* password = "AscoSpock1@";
 
-const IPAddress servidorIP(192, 168,15,24);  // IP del servidor (ESP Access Point)
+const IPAddress servidorIP(192, 168, 15, 24);  // IP por defecto de ESP Access Point
 const int servidorPuerto = 8000;
 
 WiFiUDP Udp;
 
 void setup() {
-  Serial.begin(9600); // Velocidad igual a la del dispositivo conectado por TX/RX
+  Serial.begin(115200);
   WiFi.begin(ssid, password);
+  Serial.print("Conectando al servidor ESP...");
+
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
+    Serial.print(".");
   }
-  Udp.begin(8888);
+  Serial.println("\nConectado al AP.");
+  Serial.println(WiFi.localIP());
+
+  Udp.begin(8888);  // Puerto local del cliente
 }
 
 void loop() {
-  if (Serial.available()) {
-    String entrada = Serial.readStringUntil('\n');
-    entrada.trim();
+  float valor = random(100) / 10.0;
 
-    if (entrada.length() > 0) {
-      float valor = entrada.toFloat();  // suponiendo que los datos son números
+  OSCMessage msg("/valor");
+  msg.add(valor);
 
-      OSCMessage msg("/serialdata");
-      msg.add(valor);
+  Udp.beginPacket(servidorIP, servidorPuerto);
+  msg.send(Udp);
+  Udp.endPacket();
+  msg.empty();
 
-      Udp.beginPacket(servidorIP, servidorPuerto);
-      msg.send(Udp);
-      Udp.endPacket();
-      msg.empty();
-    }
-  }
+  Serial.print("Enviado: ");
+  Serial.println(valor);
+
+  delay(1000);
 }
