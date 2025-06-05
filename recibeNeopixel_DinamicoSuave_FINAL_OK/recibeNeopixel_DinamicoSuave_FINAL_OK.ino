@@ -4,7 +4,7 @@
 #include <Adafruit_NeoPixel.h>
 
 // ==== Configuración NeoPixel ====
-#define PIN_NEOPIXEL 12
+#define PIN_NEOPIXEL 2
 #define NUM_PIXELS 64
 #define MATRIX_WIDTH 8
 #define MATRIX_HEIGHT 8
