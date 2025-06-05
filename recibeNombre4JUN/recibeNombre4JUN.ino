@@ -9,6 +9,7 @@
 #define MATRIX_WIDTH 8
 #define MATRIX_HEIGHT 8
 Adafruit_NeoPixel strip(NUM_PIXELS, PIN_NEOPIXEL, NEO_GRB + NEO_KHZ800);
+const char* nombreEsperado = "Emisor_A";  // <- Este debe coincidir con el nombre configurado en el emisor
 
 // ==== Variables ====
 float t = 0;
@@ -68,10 +69,20 @@ class ScanCallbacks : public NimBLEScanCallbacks {
     Serial.printf("🔍 Encontrado: %s\n", advertisedDevice->toString().c_str());
 
     if (advertisedDevice->isAdvertisingService(NimBLEUUID("DEAD"))) {
-      Serial.println("🧠 Servicio 'DEAD' detectado");
-      NimBLEDevice::getScan()->stop();
-      advDevice = advertisedDevice;
-      doConnect = true;
+      std::string nombre = advertisedDevice->getName();
+      Serial.printf("🧠 Servicio 'DEAD' detectado. Nombre: %s\n", nombre.c_str());
+
+      // Verifica que el nombre no esté vacío y sea el correcto
+      if (!nombre.empty() && nombre == nombreEsperado) {
+        Serial.println("✅ Nombre válido. Conectando...");
+        NimBLEDevice::getScan()->stop();
+        advDevice = advertisedDevice;
+        doConnect = true;
+      } else if (nombre.empty()) {
+        Serial.println("⚠️ Dispositivo sin nombre. Ignorado.");
+      } else {
+        Serial.printf("🚫 Nombre '%s' no coincide con '%s'. Ignorado.\n", nombre.c_str(), nombreEsperado);
+      }
     }
   }
 
@@ -172,19 +183,19 @@ void respiraNeopixel() {
   }
 
   // Mapear delta a velocidad según rangos definidos
-float newSpeed;
+  float newSpeed;
 
-if (delta <= 1.1) newSpeed = 0.009;    // muy lento
-else if (delta <= 1.4) newSpeed = 0.015;
-else if (delta <= 1.7) newSpeed = 0.022;
-else if (delta <= 2.0) newSpeed = 0.030;
-else if (delta <= 2.3) newSpeed = 0.040;
-else if (delta <= 2.6) newSpeed = 0.050;
-else if (delta <= 2.9) newSpeed = 0.060;
-else if (delta <= 3.2) newSpeed = 0.072;
-else if (delta <= 3.5) newSpeed = 0.085;
-else newSpeed = 0.100;      
-                     // muy intenso
+  if (delta <= 1.1) newSpeed = 0.009;  // muy lento
+  else if (delta <= 1.4) newSpeed = 0.015;
+  else if (delta <= 1.7) newSpeed = 0.022;
+  else if (delta <= 2.0) newSpeed = 0.030;
+  else if (delta <= 2.3) newSpeed = 0.040;
+  else if (delta <= 2.6) newSpeed = 0.050;
+  else if (delta <= 2.9) newSpeed = 0.060;
+  else if (delta <= 3.2) newSpeed = 0.072;
+  else if (delta <= 3.5) newSpeed = 0.085;
+  else newSpeed = 0.100;
+  // muy intenso
 
   // Actualizar velocidad si ha pasado el tiempo mínimo
   if (millis() - lastSpeedChange > minSpeedHold && abs(newSpeed - targetSpeed) > 0.001) {

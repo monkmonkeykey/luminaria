@@ -50,7 +50,10 @@ void setup() {
 
   NimBLEAdvertising* pAdvertising = NimBLEDevice::getAdvertising();
   pAdvertising->addServiceUUID(SERVICE_UUID);
+  pAdvertising->setScanResponse(true);  // Para que el nombre esté en la respuesta
+  pAdvertising->setCompleteDeviceName(nombreDispositivoBLE);  // << AQUI está lo clave
   pAdvertising->start();
+
 
   Serial.printf("📡 Anunciando como '%s' con servicio BLE...\n", nombreDispositivoBLE);
 }
